@@ -56,7 +56,9 @@
 #define TOUCH_OPEN_DWORK_TIME 10
 #endif
 
-//#define FTS_SUPPROT_MULTIMEDIA
+#define FTS_SUPPORT_PARTIAL_DOWNLOAD
+
+#undef FTS_SUPPROT_MULTIMEDIA
 
 /*
 #define FTS_SUPPORT_STRINGLIB
@@ -130,6 +132,10 @@
 #define STATUS_EVENT_PANEL_TEST_RESULT	0x0B
 #define STATUS_EVENT_GLOVE_MODE	0x0C
 #define STATUS_EVENT_RAW_DATA_READY	0x0D
+#ifdef FTS_SUPPORT_PARTIAL_DOWNLOAD
+#define STATUS_EVENT_PURE_AUTOTUNE_FLAG_WRITE_FINISH	0x10
+#define STATUS_EVENT_PURE_AUTOTUNE_FLAG_ERASE_FINISH	0x11
+#endif 
 #define STATUS_EVENT_MUTUAL_CAL_FRAME_CHECK	0xC1
 #define STATUS_EVENT_SELF_CAL_FRAME_CHECK	0xC2
 #define STATUS_EVENT_CHARGER_CONNECTED	0xCC
@@ -151,6 +157,11 @@
 
 #define FTS_CMD_MSKEY_AUTOTUNE		0x96
 #define FTS_CMD_TRIM_LOW_POWER_OSCILLATOR		0x97
+
+#ifdef FTS_SUPPORT_PARTIAL_DOWNLOAD
+#define FTS_CMD_FORCE_AUTOTUNE		0x98
+#endif
+
 
 #define FTS_CMD_KEY_SENSE_OFF		0x9A
 #define FTS_CMD_KEY_SENSE_ON		0x9B
@@ -188,11 +199,14 @@
 #define FTS_CMD_SLOW_SCAN			0x02
 #define FTS_CMD_USLOW_SCAN			0x03
 
+/* stm4-0x62, stm5-0x79 */
+#define FTS_CMD_THRESHOLD			0x79
+
 #define REPORT_RATE_90HZ				0
 #define REPORT_RATE_60HZ				1
 #define REPORT_RATE_30HZ				2
 
-#define FTS_CMD_STRING_ACCESS	0xEC00
+#define FTS_CMD_STRING_ACCESS	0x3000
 #define FTS_CMD_NOTIFY				0xC0
 
 #define FTS_RETRY_COUNT					10
@@ -226,7 +240,7 @@
 #define FTS_MODE_DIRECT_INDICATOR			(1 << 3)
 
 #define TSP_BUF_SIZE 3000
-#define CMD_STR_LEN 32
+#define CMD_STR_LEN 256
 #define CMD_RESULT_STR_LEN 3000
 #define CMD_PARAM_NUM 8
 
@@ -238,6 +252,8 @@
 #define FTS_LOWP_FLAG_SPAY				(1 << 5)
 #define FTS_LOWP_FLAG_TEMP_CMD				(1 << 6)
 
+#define EDGEWAKE_RIGHT	0
+#define EDGEWAKE_LEFT	1
 
 /* refer to lcd driver to support TB UB */
 #define S6E3HF2_WQXGA_ID1 0x404013
@@ -389,7 +405,9 @@ struct fts_ts_info {
 	unsigned char lowpower_flag;
 	bool lowpower_mode;
 	bool deepsleep_mode;
+	bool wirelesscharger_mode;
 	int fts_power_state;
+	int wakeful_edge_side;
 #ifdef FTS_SUPPORT_STRINGLIB
 	unsigned char fts_mode;
 #endif
@@ -427,6 +445,7 @@ struct fts_ts_info {
 	int panel_revision;			/* Octa panel revision */
 	int tspid_val;
 	int tspid2_val;
+	int pat;
 
 #ifdef USE_OPEN_DWORK
 	struct delayed_work open_work;
@@ -469,6 +488,11 @@ struct fts_ts_info {
 	int brush_size;
 #endif
 
+#ifdef FTS_SUPPORT_PARTIAL_DOWNLOAD
+	unsigned char o_afe_ver;
+	unsigned char afe_ver;
+#endif
+
 	int (*stop_device) (struct fts_ts_info * info);
 	int (*start_device) (struct fts_ts_info * info);
 
@@ -490,5 +514,8 @@ int fts_fw_update_on_hidden_menu(struct fts_ts_info *info, int update_type);
 void fts_fw_init(struct fts_ts_info *info);
 void fts_execute_autotune(struct fts_ts_info *info);
 int fts_fw_wait_for_event(struct fts_ts_info *info, unsigned char eid);
+#ifdef FTS_SUPPORT_PARTIAL_DOWNLOAD
+bool get_PureAutotune_status(struct fts_ts_info *info);
+#endif
 
 #endif				//_LINUX_FTS_TS_H_

@@ -22,7 +22,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_wlfc.h 528502 2015-01-22 11:13:23Z $
+ * $Id: dhd_wlfc.h 557035 2015-05-15 18:48:57Z $
  *
  */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -30,6 +30,11 @@
 
 
 /* #define OOO_DEBUG */
+
+#define KERNEL_THREAD_RETURN_TYPE int
+
+typedef int (*f_commitpkt_t)(void* ctx, void* p);
+typedef bool (*f_processpkt_t)(void* p, void* arg);
 
 #define WLFC_UNSUPPORTED -9999
 
@@ -44,10 +49,12 @@
 #define WLFC_HANGER_ITEM_STATE_FREE			1
 #define WLFC_HANGER_ITEM_STATE_INUSE			2
 #define WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED		3
+#define WLFC_HANGER_ITEM_STATE_FLUSHED			4
 
 #define WLFC_HANGER_PKT_STATE_TXSTATUS			1
-#define WLFC_HANGER_PKT_STATE_TXCOMPLETE		2
-#define WLFC_HANGER_PKT_STATE_CLEANUP			4
+#define WLFC_HANGER_PKT_STATE_BUSRETURNED		2
+#define WLFC_HANGER_PKT_STATE_COMPLETE			\
+	(WLFC_HANGER_PKT_STATE_TXSTATUS | WLFC_HANGER_PKT_STATE_BUSRETURNED)
 
 typedef enum {
 	Q_TYPE_PSQ, /**< Power Save Queue, contains both delayed and suppressed packets */
@@ -107,6 +114,13 @@ typedef struct wlfc_hanger {
 #define WLFC_FLOWCONTROL_HIWATER	(2048 - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
 
+#if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
+#undef WLFC_FLOWCONTROL_HIWATER
+#define WLFC_FLOWCONTROL_HIWATER	(WLFC_PSQ_LEN - 256)
+#undef WLFC_FLOWCONTROL_LOWATER
+#define WLFC_FLOWCONTROL_LOWATER	(WLFC_FLOWCONTROL_HIWATER / 4)
+#endif
+
 #define WLFC_LOG_BUF_SIZE		(1024*1024)
 
 /** Properties related to a remote MAC entity */
@@ -137,6 +151,8 @@ typedef struct wlfc_mac_descriptor {
 	int transit_count;
 	/** Number of suppression to wait before evict from delayQ */
 	int suppr_transit_count;
+	/** pkt sent to bus but no bus TX complete yet */
+	int onbus_pkts_count;
 	/** flag. TRUE when remote MAC is in suppressed state */
 	uint8 suppressed;
 
@@ -260,6 +276,10 @@ typedef struct athost_wl_status_info {
 	osl_t *osh;
 	/** dhd public struct pointer */
 	void *dhdp;
+
+	f_commitpkt_t fcommit;
+	void* commit_ctx;
+
 	/** statistics */
 	athost_wl_stat_counters_t stats;
 
@@ -293,7 +313,7 @@ typedef struct athost_wl_status_info {
 	int	pkt_cnt_in_q[WLFC_MAX_IFNUM][AC_COUNT+1];
 	int	pkt_cnt_per_ac[AC_COUNT+1];
 	int	pkt_cnt_in_drv[WLFC_MAX_IFNUM][AC_COUNT+1];
-
+	int	pkt_cnt_in_psq;
 	uint8	allow_fc;              /**< Boolean */
 	uint32  fc_defer_timestamp;
 	uint32	rx_timestamp[AC_COUNT+1];
@@ -320,6 +340,12 @@ typedef struct athost_wl_status_info {
 
 /** Please be mindful that total pkttag space is 32 octets only */
 typedef struct dhd_pkttag {
+
+#ifdef BCM_OBJECT_TRACE
+	/* if use this field, keep it at the first 4 bytes */
+	uint32 sn;
+#endif /* BCM_OBJECT_TRACE */
+
 	/**
 	b[15]  - 1 = wlfc packet
 	b[14:13]  - encryption exemption
@@ -472,9 +498,6 @@ typedef struct dhd_pkttag {
 #define PSQ_SUP_IDX(x) (x * 2 + 1)
 #define PSQ_DLY_IDX(x) (x * 2)
 
-typedef int (*f_commitpkt_t)(void* ctx, void* p);
-typedef bool (*f_processpkt_t)(void* p, void* arg);
-
 #ifdef PROP_TXSTATUS_DEBUG
 #define DHD_WLFC_CTRINC_MAC_CLOSE(entry)	do { (entry)->closed_ct++; } while (0)
 #define DHD_WLFC_CTRINC_MAC_OPEN(entry)		do { (entry)->opened_ct++; } while (0)
@@ -483,9 +506,15 @@ typedef bool (*f_processpkt_t)(void* p, void* arg);
 #define DHD_WLFC_CTRINC_MAC_OPEN(entry)		do {} while (0)
 #endif
 
+#ifdef BCM_OBJECT_TRACE
+#define DHD_PKTTAG_SET_SN(tag, val)		((dhd_pkttag_t*)(tag))->sn = (val)
+#define DHD_PKTTAG_SN(tag)			(((dhd_pkttag_t*)(tag))->sn)
+#endif /* BCM_OBJECT_TRACE */
+
 /* public functions */
 int dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void* pktbuf, int tlv_hdr_len,
 	uchar *reorder_info_buf, uint *reorder_info_len);
+KERNEL_THREAD_RETURN_TYPE dhd_wlfc_transfer_packets(void *data);
 int dhd_wlfc_commit_packets(dhd_pub_t *dhdp, f_commitpkt_t fcommit,
 	void* commit_ctx, void *pktbuf, bool need_toggle_host_if);
 int dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success);

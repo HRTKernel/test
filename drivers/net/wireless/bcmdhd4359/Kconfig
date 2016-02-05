@@ -3,7 +3,7 @@ config BROADCOM_WIFI
 	depends on WLAN
 	default n
 	---help---
-	  This is a configuration for broadcom WLAN driver.
+	  This is a configuration for Broadcom WLAN driver.
 
 config BCM4330
 	tristate "Broadcom 4330 wireless cards support"
@@ -100,19 +100,13 @@ config BROADCOM_WIFI_RESERVED_MEM
 	bool "BROADCOM Reserved memory for wifi device"
 	depends on BROADCOM_WIFI
 	---help---
-	  This is a configuration for broadcom WLAN driver.
-
-config BCMDHD_PREALLOC_PKTIDMAP
-	bool "BROADCOM PCIE specific memory reserved for PKTIDMAP"
-	depends on BROADCOM_WIFI
-	---help---
-	  This is a configuration for broadcom WLAN driver.
+	  This is a configuration for Broadcom WLAN driver.
 
 config WIFI_BROADCOM_COB
         bool "BROADCOM WIFI COB"
-        depends on (BCM43455)
+        depends on (BCM43455 || BCM4343)
         ---help---
-          This is a configuration for broadcom WIFI COB Type.
+          This is a configuration for Broadcom WIFI COB Type.
 
 config BCM4335BT
 	bool "BROADCOM BTLOCK Enable"
@@ -149,8 +143,28 @@ config WL_RELMCAST
 	---help---
 	  This is a configuration for RMC.
 
+config WL_NAN
+	bool "NAN Feature"
+	depends on BROADCOM_WIFI
+	default n
+	---help---
+	  This is a configuration for NAN Feature.
+
 config BCMDHD_PCIE
 	bool "Enable PCIe I/F Support"
 	depends on (BCM4354 || BCM4358 || BCM4359)
 	---help---
 	  Enable PCI Express I/F Support
+
+config BCMDHD_PREALLOC_PKTIDMAP
+	bool "BROADCOM PCIE specific memory reserved for PKTIDMAP"
+	depends on BROADCOM_WIFI_RESERVED_MEM && BCMDHD_PCIE
+	---help---
+	  Preallocated memory support for PCIE interface in Broadcom
+	  WLAN driver.
+
+config BCMDHD_PREALLOC_MEMDUMP
+	bool "BROADCOM PCIE specific memory reserved for MEMDUMP"
+	depends on BROADCOM_WIFI_RESERVED_MEM
+	---help---
+	  Preallocated memory support for dongle memory dump

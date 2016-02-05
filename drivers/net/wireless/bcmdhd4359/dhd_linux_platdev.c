@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux_platdev.c 401742 2013-05-13 15:03:21Z $
+ * $Id: dhd_linux_platdev.c 591285 2015-10-07 11:56:29Z $
  */
 #include <typedefs.h>
 #include <linux/kernel.h>
@@ -47,23 +47,6 @@
 #include<linux/of_gpio.h>
 #endif /* CONFIG_DTS */
 
-#if !defined(CONFIG_WIFI_CONTROL_FUNC)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
-#define WLAN_PLAT_NODFS_FLAG    0x01
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) */
-struct wifi_platform_data {
-	int (*set_power)(int val);
-	int (*set_reset)(int val);
-	int (*set_carddetect)(int val);
-	void *(*mem_prealloc)(int section, unsigned long size);
-	int (*get_mac_addr)(unsigned char *buf);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
-	void *(*get_country_code)(char *ccode, u32 flags);
-#else /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) */
-	void *(*get_country_code)(char *ccode);
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) */
-};
-#endif /* CONFIG_WIFI_CONTROL_FUNC */
 
 #define WIFI_PLAT_NAME		"bcmdhd_wlan"
 #define WIFI_PLAT_NAME2		"bcm4329_wlan"
@@ -241,8 +224,11 @@ int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf)
 	}
 	return -EOPNOTSUPP;
 }
-
+#ifdef CUSTOM_COUNTRY_CODE
+void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode, u32 flags)
+#else
 void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
+#endif /* CUSTOM_COUNTRY_CODE */
 {
 	/* get_country_code was added after 2.6.39 */
 #if	(LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
@@ -257,7 +243,11 @@ void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
 #if     (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
 		return plat_data->get_country_code(ccode, WLAN_PLAT_NODFS_FLAG);
 #else
+#ifdef CUSTOM_COUNTRY_CODE
+		return plat_data->get_country_code(ccode, flags);
+#else
 		return plat_data->get_country_code(ccode);
+#endif /* CUSTOM_COUNTRY_CODE */
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) */
 	}
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) */

@@ -41,15 +41,19 @@ struct abov_touchkey_platform_data {
 	int gpio_tkey_led_en;
 	int gpio_seperated;
 	int sub_det;
+	int device_num;
 	struct regulator *vdd_io_vreg;
 	struct regulator *avdd_vreg;
 	struct regulator *dvdd_vreg;
 	void (*input_event) (void *data);
-	int (*power) (struct abov_touchkey_platform_data *pdata, bool on);
+	int (*power) (void *, bool on);
 	int (*keyled) (bool on);
 	char *fw_path;
 	u8 fw_checksum_h;
 	u8 fw_checksum_l;
+	bool boot_on_ldo;
+	const char *regulator_avdd;
+	const char *regulator_dvdd;
 };
 
 #endif /* LINUX_ABOV_TOUCHKEY_H */

@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_pno.h 423669 2013-09-18 13:01:55Z $
+ * $Id: dhd_pno.h 591285 2015-10-07 11:56:29Z $
  */
 
 #ifndef __DHD_PNO_H__
@@ -36,11 +36,9 @@
 #define PNO_TLV_VERSION			'1'
 #define PNO_TLV_SUBTYPE_LEGACY_PNO '2'
 #define PNO_TLV_RESERVED		'0'
-
 #define PNO_BATCHING_SET "SET"
 #define PNO_BATCHING_GET "GET"
 #define PNO_BATCHING_STOP "STOP"
-
 #define PNO_PARAMS_DELIMETER " "
 #define PNO_PARAM_CHANNEL_DELIMETER ","
 #define PNO_PARAM_VALUE_DELLIMETER '='
@@ -87,7 +85,6 @@
 #define GSCAN_LOST_AP_WINDOW_DEFAULT        4
 #define GSCAN_MIN_BSSID_TIMEOUT             90
 #define GSCAN_BATCH_GET_MAX_WAIT            500
-
 #define CHANNEL_BUCKET_EMPTY_INDEX                      0xFFFF
 #define GSCAN_RETRY_THRESHOLD              3
 #endif /* GSCAN_SUPPORT */
@@ -117,7 +114,9 @@ enum index_mode {
 	/* GSCAN includes hotlist scan and they do not run
 	 * independent of each other
 	 */
+#ifdef GSCAN_SUPPORT
 	INDEX_OF_GSCAN_PARAMS = INDEX_OF_HOTLIST_PARAMS,
+#endif /* GSCAN_SUPPORT */
 	INDEX_MODE_MAX
 };
 enum dhd_pno_status {
@@ -156,7 +155,6 @@ typedef enum dhd_pno_gscan_cmd_cfg {
 	DHD_PNO_GET_BATCH_RESULTS,
 	DHD_PNO_GET_CHANNEL_LIST
 } dhd_pno_gscan_cmd_cfg_t;
-#endif /* GSCAN_SUPPORT */
 
 typedef enum dhd_pno_mode {
 	/* Wi-Fi Legacy PNO Mode */
@@ -169,7 +167,17 @@ typedef enum dhd_pno_mode {
 	/* Wi-Fi Google Android SCAN Mode */
 	DHD_PNO_GSCAN_MODE = (1 << (3))
 } dhd_pno_mode_t;
-
+#else
+typedef enum dhd_pno_mode {
+	/* Wi-Fi Legacy PNO Mode */
+	DHD_PNO_NONE_MODE   = 0,
+	DHD_PNO_LEGACY_MODE = (1 << (0)),
+	/* Wi-Fi Android BATCH SCAN Mode */
+	DHD_PNO_BATCH_MODE = (1 << (1)),
+	/* Wi-Fi Android Hotlist SCAN Mode */
+	DHD_PNO_HOTLIST_MODE = (1 << (2))
+} dhd_pno_mode_t;
+#endif /* GSCAN_SUPPORT */
 struct dhd_pno_ssid {
 	bool		hidden;
 	uint32		SSID_len;

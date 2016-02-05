@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dbus.h 530150 2015-01-29 08:43:40Z $
+ * $Id: dbus.h 553311 2015-04-29 10:23:08Z $
  */
 
 #ifndef __DBUS_H__
@@ -59,7 +59,8 @@ enum {
 	DBUS_ERR_NVRAM,
 	DBUS_JUMBO_NOMATCH,
 	DBUS_JUMBO_BAD_FORMAT,
-	DBUS_NVRAM_NONTXT
+	DBUS_NVRAM_NONTXT,
+	DBUS_ERR_RXZLP
 };
 
 #define BCM_OTP_SIZE_43236  84	/* number of 16 bit values */
@@ -100,7 +101,8 @@ enum dbus_state {
 	DBUS_STATE_DOWN,
 	DBUS_STATE_PNP_FWDL,
 	DBUS_STATE_DISCONNECT,
-	DBUS_STATE_SLEEP
+	DBUS_STATE_SLEEP,
+	DBUS_STATE_DL_NEEDED
 };
 
 enum dbus_pnp_state {
@@ -299,6 +301,7 @@ extern dbus_pub_t *dbus_attach(struct osl_info *osh, int rxsize, int nrxq, int n
 	void *cbarg, dbus_callbacks_t *cbs, dbus_extdl_t *extdl, struct shared_info *sh);
 extern void dbus_detach(dbus_pub_t *pub);
 
+extern int dbus_download_firmware(dbus_pub_t *pub);
 extern int dbus_up(dbus_pub_t *pub);
 extern int dbus_down(dbus_pub_t *pub);
 extern int dbus_stop(dbus_pub_t *pub);

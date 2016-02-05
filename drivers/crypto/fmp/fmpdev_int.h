@@ -27,6 +27,17 @@
 
 #include "fmpdev_info.h"
 
+/* Used during FIPS Functional test with CMT Lab
+ * FIPS_FMP_FUNC_TEST 0 - Normal operation
+ * FIPS_FMP_FUNC_TEST 1 - Fail FMP H/W AES XTS Self test
+ * FIPS_FMP_FUNC_TEST 2 - Fail FMP H/W AES CBC Self test
+ * FIPS_FMP_FUNC_TEST 3 - Fail FMP DRV SHA256 Self test
+ * FIPS_FMP_FUNC_TEST 4 - Fail FMP DRV HMAC Self test
+ * FIPS_FMP_FUNC_TEST 5 - Fail FMP DRV Integrity test
+ * FIPS_FMP_FUNC_TEST 6 - Enable FMP Key zeroization logs
+ */
+#define FIPS_FMP_FUNC_TEST 0
+
 struct fcrypt {
 	struct list_head list;
 	struct mutex sem;
@@ -133,7 +144,7 @@ struct cipher_data {
 /* Hash */
 struct sha256_fmpfw_info {
 	uint32_t input;
-	uint32_t input_len;
+	size_t input_len;
 	uint32_t output;
 	uint32_t step;
 };
@@ -141,7 +152,7 @@ struct sha256_fmpfw_info {
 struct hmac_sha256_fmpfw_info {
 	struct sha256_fmpfw_info s;
 	uint32_t key;
-	uint32_t key_len;
+	size_t key_len;
 	uint32_t hmac_mode;
 	uint32_t dummy;
 };

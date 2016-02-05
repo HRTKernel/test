@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 536795 2015-02-24 09:18:54Z $
+ * $Id: bcmutils.c 591286 2015-10-07 11:59:26Z $
  */
 
 #include <bcm_cfg.h>
@@ -798,6 +798,11 @@ pktsetprio(void *pkt, bool update_vtag)
 			evh->vlan_tag = hton16(vlan_tag);
 			rc |= PKTPRIO_UPD;
 		}
+#ifdef DHD_LOSSLESS_ROAMING
+	} else if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
+		priority = PRIO_8021D_NC;
+		rc = PKTPRIO_DSCP;
+#endif /* DHD_LOSSLESS_ROAMING */
 	} else if ((eh->ether_type == hton16(ETHER_TYPE_IP)) ||
 		(eh->ether_type == hton16(ETHER_TYPE_IPV6))) {
 		uint8 *ip_body = pktdata + sizeof(struct ether_header);
@@ -831,6 +836,51 @@ pktsetprio(void *pkt, bool update_vtag)
 	ASSERT(priority >= 0 && priority <= MAXPRIO);
 	PKTSETPRIO(pkt, priority);
 	return (rc | priority);
+}
+
+/* lookup user priority for specified DSCP */
+static uint8
+dscp2up(uint8 *up_table, uint8 dscp)
+{
+	uint8 user_priority = 255;
+
+	/* lookup up from table if parameters valid */
+	if (up_table != NULL && dscp < UP_TABLE_MAX) {
+		user_priority = up_table[dscp];
+	}
+
+	/* 255 is unused value so return up from dscp */
+	if (user_priority == 255) {
+		user_priority = dscp >> (IPV4_TOS_PREC_SHIFT - IPV4_TOS_DSCP_SHIFT);
+	}
+
+	return user_priority;
+}
+
+/* set user priority by QoS Map Set table (UP table), table size is UP_TABLE_MAX */
+uint BCMFASTPATH
+pktsetprio_qms(void *pkt, uint8* up_table, bool update_vtag)
+{
+	if (up_table) {
+		uint8 *pktdata;
+		uint pktlen;
+		uint8 dscp;
+		uint user_priority = 0;
+		uint rc = 0;
+
+		pktdata = (uint8 *)PKTDATA(OSH_NULL, pkt);
+		pktlen = PKTLEN(OSH_NULL, pkt);
+
+		if (pktgetdscp(pktdata, pktlen, &dscp)) {
+			rc = PKTPRIO_DSCP;
+			user_priority = dscp2up(up_table, dscp);
+			PKTSETPRIO(pkt, user_priority);
+		}
+
+		return (rc | user_priority);
+	} else {
+		return pktsetprio(pkt, update_vtag);
+	}
 }
 
 /* Returns TRUE and DSCP if IP header found, FALSE otherwise.
@@ -967,6 +1017,415 @@ bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 
 #endif	/* BCMDRIVER */
 
+#ifdef BCM_OBJECT_TRACE
+
+#define BCM_OBJECT_MERGE_SAME_OBJ	0
+
+/* some place may add / remove the object to trace list for Linux: */
+/* add:    osl_alloc_skb dev_alloc_skb skb_realloc_headroom dhd_start_xmit */
+/* remove: osl_pktfree dev_kfree_skb netif_rx */
+
+#define BCM_OBJDBG_COUNT          (1024 * 100)
+static spinlock_t dbgobj_lock;
+#define	BCM_OBJDBG_LOCK_INIT()    spin_lock_init(&dbgobj_lock)
+#define	BCM_OBJDBG_LOCK_DESTROY()
+#define	BCM_OBJDBG_LOCK           spin_lock_irqsave
+#define	BCM_OBJDBG_UNLOCK         spin_unlock_irqrestore
+
+#define BCM_OBJDBG_ADDTOHEAD      0
+#define BCM_OBJDBG_ADDTOTAIL      1
+
+#define BCM_OBJDBG_CALLER_LEN     32
+struct bcm_dbgobj {
+	struct bcm_dbgobj *prior;
+	struct bcm_dbgobj *next;
+	uint32 flag;
+	void   *obj;
+	uint32 obj_sn;
+	uint32 obj_state;
+	uint32 line;
+	char   caller[BCM_OBJDBG_CALLER_LEN];
+};
+
+static struct bcm_dbgobj *dbgobj_freehead = NULL;
+static struct bcm_dbgobj *dbgobj_freetail = NULL;
+static struct bcm_dbgobj *dbgobj_objhead = NULL;
+static struct bcm_dbgobj *dbgobj_objtail = NULL;
+
+static uint32 dbgobj_sn = 0;
+static int dbgobj_count = 0;
+static struct bcm_dbgobj bcm_dbg_objs[BCM_OBJDBG_COUNT];
+
+void
+bcm_object_trace_init(void)
+{
+	int i = 0;
+	BCM_OBJDBG_LOCK_INIT();
+	memset(&bcm_dbg_objs, 0x00, sizeof(struct bcm_dbgobj) * BCM_OBJDBG_COUNT);
+	dbgobj_freehead = &bcm_dbg_objs[0];
+	dbgobj_freetail = &bcm_dbg_objs[BCM_OBJDBG_COUNT - 1];
+
+	for (i = 0; i < BCM_OBJDBG_COUNT; ++i) {
+		bcm_dbg_objs[i].next = (i == (BCM_OBJDBG_COUNT - 1)) ?
+			dbgobj_freehead : &bcm_dbg_objs[i + 1];
+		bcm_dbg_objs[i].prior = (i == 0) ?
+			dbgobj_freetail : &bcm_dbg_objs[i - 1];
+	}
+}
+
+void
+bcm_object_trace_deinit(void)
+{
+	if (dbgobj_objhead || dbgobj_objtail) {
+		printf("%s: not all objects are released\n", __FUNCTION__);
+		ASSERT(0);
+	}
+	BCM_OBJDBG_LOCK_DESTROY();
+}
+
+static void
+bcm_object_rm_list(struct bcm_dbgobj **head, struct bcm_dbgobj **tail,
+	struct bcm_dbgobj *dbgobj)
+{
+	if ((dbgobj == *head) && (dbgobj == *tail)) {
+		*head = NULL;
+		*tail = NULL;
+	} else if (dbgobj == *head) {
+		*head = (*head)->next;
+	} else if (dbgobj == *tail) {
+		*tail = (*tail)->prior;
+	}
+	dbgobj->next->prior = dbgobj->prior;
+	dbgobj->prior->next = dbgobj->next;
+}
+
+static void
+bcm_object_add_list(struct bcm_dbgobj **head, struct bcm_dbgobj **tail,
+	struct bcm_dbgobj *dbgobj, int addtotail)
+{
+	if (!(*head) && !(*tail)) {
+		*head = dbgobj;
+		*tail = dbgobj;
+		dbgobj->next = dbgobj;
+		dbgobj->prior = dbgobj;
+	} else if ((*head) && (*tail)) {
+		(*tail)->next = dbgobj;
+		(*head)->prior = dbgobj;
+		dbgobj->next = *head;
+		dbgobj->prior = *tail;
+		if (addtotail == BCM_OBJDBG_ADDTOTAIL)
+			*tail = dbgobj;
+		else
+			*head = dbgobj;
+	} else {
+		ASSERT(0); /* can't be this case */
+	}
+}
+
+static INLINE void
+bcm_object_movetoend(struct bcm_dbgobj **head, struct bcm_dbgobj **tail,
+	struct bcm_dbgobj *dbgobj, int movetotail)
+{
+	if ((*head) && (*tail)) {
+		if (movetotail == BCM_OBJDBG_ADDTOTAIL) {
+			if (dbgobj != (*tail)) {
+				bcm_object_rm_list(head, tail, dbgobj);
+				bcm_object_add_list(head, tail, dbgobj, movetotail);
+			}
+		} else {
+			if (dbgobj != (*head)) {
+				bcm_object_rm_list(head, tail, dbgobj);
+				bcm_object_add_list(head, tail, dbgobj, movetotail);
+			}
+		}
+	} else {
+		ASSERT(0); /* can't be this case */
+	}
+}
+
+void
+bcm_object_trace_opr(void *obj, uint32 opt, const char *caller, int line)
+{
+	struct bcm_dbgobj *dbgobj;
+	unsigned long flags;
+
+	BCM_REFERENCE(flags);
+	BCM_OBJDBG_LOCK(&dbgobj_lock, flags);
+
+	if (opt == BCM_OBJDBG_ADD_PKT ||
+		opt == BCM_OBJDBG_ADD) {
+		dbgobj = dbgobj_objtail;
+		while (dbgobj) {
+			if (dbgobj->obj == obj) {
+				printf("%s: obj %p allocated from %s(%d),"
+					" allocate again from %s(%d)\n",
+					__FUNCTION__, dbgobj->obj,
+					dbgobj->caller, dbgobj->line,
+					caller, line);
+				ASSERT(0);
+				goto EXIT;
+			}
+			dbgobj = dbgobj->prior;
+			if (dbgobj == dbgobj_objtail)
+				break;
+		}
+
+#if BCM_OBJECT_MERGE_SAME_OBJ
+		dbgobj = dbgobj_freetail;
+		while (dbgobj) {
+			if (dbgobj->obj == obj) {
+				goto FREED_ENTRY_FOUND;
+			}
+			dbgobj = dbgobj->prior;
+			if (dbgobj == dbgobj_freetail)
+				break;
+		}
+#endif /* BCM_OBJECT_MERGE_SAME_OBJ */
+
+		dbgobj = dbgobj_freehead;
+#if BCM_OBJECT_MERGE_SAME_OBJ
+FREED_ENTRY_FOUND:
+#endif /* BCM_OBJECT_MERGE_SAME_OBJ */
+		if (!dbgobj) {
+			printf("%s: already got %d objects ?????????????????????\n",
+				__FUNCTION__, BCM_OBJDBG_COUNT);
+			ASSERT(0);
+			goto EXIT;
+		}
+
+		bcm_object_rm_list(&dbgobj_freehead, &dbgobj_freetail, dbgobj);
+		dbgobj->obj = obj;
+		strncpy(dbgobj->caller, caller, BCM_OBJDBG_CALLER_LEN);
+		dbgobj->caller[BCM_OBJDBG_CALLER_LEN-1] = '\0';
+		dbgobj->line = line;
+		dbgobj->flag = 0;
+		if (opt == BCM_OBJDBG_ADD_PKT) {
+			dbgobj->obj_sn = dbgobj_sn++;
+			dbgobj->obj_state = 0;
+			/* first 4 bytes is pkt sn */
+			if (((unsigned long)PKTTAG(obj)) & 0x3)
+				printf("pkt tag address not aligned by 4: %p\n", PKTTAG(obj));
+			*(uint32*)PKTTAG(obj) = dbgobj->obj_sn;
+		}
+		bcm_object_add_list(&dbgobj_objhead, &dbgobj_objtail, dbgobj,
+			BCM_OBJDBG_ADDTOTAIL);
+
+		dbgobj_count++;
+
+	} else if (opt == BCM_OBJDBG_REMOVE) {
+		dbgobj = dbgobj_objtail;
+		while (dbgobj) {
+			if (dbgobj->obj == obj) {
+				if (dbgobj->flag) {
+					printf("%s: rm flagged obj %p flag 0x%08x from %s(%d)\n",
+						__FUNCTION__, obj, dbgobj->flag, caller, line);
+				}
+				bcm_object_rm_list(&dbgobj_objhead, &dbgobj_objtail, dbgobj);
+				memset(dbgobj->caller, 0x00, BCM_OBJDBG_CALLER_LEN);
+				strncpy(dbgobj->caller, caller, BCM_OBJDBG_CALLER_LEN);
+				dbgobj->caller[BCM_OBJDBG_CALLER_LEN-1] = '\0';
+				dbgobj->line = line;
+				bcm_object_add_list(&dbgobj_freehead, &dbgobj_freetail, dbgobj,
+					BCM_OBJDBG_ADDTOTAIL);
+				dbgobj_count--;
+				goto EXIT;
+			}
+			dbgobj = dbgobj->prior;
+			if (dbgobj == dbgobj_objtail)
+				break;
+		}
+
+		dbgobj = dbgobj_freetail;
+		while (dbgobj && dbgobj->obj) {
+			if (dbgobj->obj == obj) {
+				printf("%s: obj %p already freed from from %s(%d),"
+					" try free again from %s(%d)\n",
+					__FUNCTION__, obj,
+					dbgobj->caller, dbgobj->line,
+					caller, line);
+				//ASSERT(0); /* release same obj more than one time? */
+				goto EXIT;
+			}
+			dbgobj = dbgobj->prior;
+			if (dbgobj == dbgobj_freetail)
+				break;
+		}
+
+		printf("%s: ################### release none-existing obj %p from %s(%d)\n",
+			__FUNCTION__, obj, caller, line);
+		//ASSERT(0); /* release same obj more than one time? */
+
+	}
+
+EXIT:
+	BCM_OBJDBG_UNLOCK(&dbgobj_lock, flags);
+	return;
+}
+
+void
+bcm_object_trace_upd(void *obj, void *obj_new)
+{
+	struct bcm_dbgobj *dbgobj;
+	unsigned long flags;
+
+	BCM_REFERENCE(flags);
+	BCM_OBJDBG_LOCK(&dbgobj_lock, flags);
+
+	dbgobj = dbgobj_objtail;
+	while (dbgobj) {
+		if (dbgobj->obj == obj) {
+			dbgobj->obj = obj_new;
+			if (dbgobj != dbgobj_objtail) {
+				bcm_object_movetoend(&dbgobj_objhead, &dbgobj_objtail,
+					dbgobj, BCM_OBJDBG_ADDTOTAIL);
+			}
+			goto EXIT;
+		}
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_objtail)
+			break;
+	}
+
+EXIT:
+	BCM_OBJDBG_UNLOCK(&dbgobj_lock, flags);
+	return;
+}
+
+void
+bcm_object_trace_chk(void *obj, uint32 chksn, uint32 sn,
+	const char *caller, int line)
+{
+	struct bcm_dbgobj *dbgobj;
+	unsigned long flags;
+
+	BCM_REFERENCE(flags);
+	BCM_OBJDBG_LOCK(&dbgobj_lock, flags);
+
+	dbgobj = dbgobj_objtail;
+	while (dbgobj) {
+		if ((dbgobj->obj == obj) &&
+			((!chksn) || (dbgobj->obj_sn == sn))) {
+			if (dbgobj != dbgobj_objtail) {
+				bcm_object_movetoend(&dbgobj_objhead, &dbgobj_objtail,
+					dbgobj, BCM_OBJDBG_ADDTOTAIL);
+			}
+			goto EXIT;
+		}
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_objtail)
+			break;
+	}
+
+	dbgobj = dbgobj_freetail;
+	while (dbgobj) {
+		if ((dbgobj->obj == obj) &&
+			((!chksn) || (dbgobj->obj_sn == sn))) {
+			printf("%s: (%s:%d) obj %p (sn %d state %d) was freed from %s(%d)\n",
+				__FUNCTION__, caller, line,
+				dbgobj->obj, dbgobj->obj_sn, dbgobj->obj_state,
+				dbgobj->caller, dbgobj->line);
+			goto EXIT;
+		}
+		else if (dbgobj->obj == NULL) {
+			break;
+		}
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_freetail)
+			break;
+	}
+
+	printf("%s: obj %p not found, check from %s(%d), chksn %s, sn %d\n",
+		__FUNCTION__, obj, caller, line, chksn ? "yes" : "no", sn);
+	dbgobj = dbgobj_objtail;
+	while (dbgobj) {
+		printf("%s: (%s:%d) obj %p sn %d was allocated from %s(%d)\n",
+				__FUNCTION__, caller, line,
+				dbgobj->obj, dbgobj->obj_sn, dbgobj->caller, dbgobj->line);
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_objtail)
+			break;
+	}
+
+EXIT:
+	BCM_OBJDBG_UNLOCK(&dbgobj_lock, flags);
+	return;
+}
+
+void
+bcm_object_feature_set(void *obj, uint32 type, uint32 value)
+{
+	struct bcm_dbgobj *dbgobj;
+	unsigned long flags;
+
+	BCM_REFERENCE(flags);
+	BCM_OBJDBG_LOCK(&dbgobj_lock, flags);
+
+	dbgobj = dbgobj_objtail;
+	while (dbgobj) {
+		if (dbgobj->obj == obj) {
+			if (type == BCM_OBJECT_FEATURE_FLAG) {
+				if (value & BCM_OBJECT_FEATURE_CLEAR)
+					dbgobj->flag &= ~(value);
+				else
+					dbgobj->flag |= (value);
+			} else if (type == BCM_OBJECT_FEATURE_PKT_STATE) {
+				dbgobj->obj_state = value;
+			}
+			if (dbgobj != dbgobj_objtail) {
+				bcm_object_movetoend(&dbgobj_objhead, &dbgobj_objtail,
+					dbgobj, BCM_OBJDBG_ADDTOTAIL);
+			}
+			goto EXIT;
+		}
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_objtail)
+			break;
+	}
+
+	printf("%s: obj %p not found in active list\n", __FUNCTION__, obj);
+	ASSERT(0);
+
+EXIT:
+	BCM_OBJDBG_UNLOCK(&dbgobj_lock, flags);
+	return;
+}
+
+int
+bcm_object_feature_get(void *obj, uint32 type, uint32 value)
+{
+	int rtn = 0;
+	struct bcm_dbgobj *dbgobj;
+	unsigned long flags;
+
+	BCM_REFERENCE(flags);
+	BCM_OBJDBG_LOCK(&dbgobj_lock, flags);
+
+	dbgobj = dbgobj_objtail;
+	while (dbgobj) {
+		if (dbgobj->obj == obj) {
+			if (type == BCM_OBJECT_FEATURE_FLAG) {
+				rtn = (dbgobj->flag & value) & (~BCM_OBJECT_FEATURE_CLEAR);
+			}
+			if (dbgobj != dbgobj_objtail) {
+				bcm_object_movetoend(&dbgobj_objhead, &dbgobj_objtail,
+					dbgobj, BCM_OBJDBG_ADDTOTAIL);
+			}
+			goto EXIT;
+		}
+		dbgobj = dbgobj->prior;
+		if (dbgobj == dbgobj_objtail)
+			break;
+	}
+
+	printf("%s: obj %p not found in active list\n", __FUNCTION__, obj);
+	ASSERT(0);
+
+EXIT:
+	BCM_OBJDBG_UNLOCK(&dbgobj_lock, flags);
+	return rtn;
+}
+
+#endif /* BCM_OBJECT_TRACE */
 
 uint8 *
 bcm_write_tlv(int type, const void *data, int datalen, uint8 *dst)
@@ -1600,7 +2059,11 @@ static const char *crypto_algo_names[] = {
 	"UNDEF",
 	"UNDEF",
 #endif /* BCMCCX */
+#ifdef BCMWAPI_WAI
 	"WAPI",
+#else
+	"UNDEF"
+#endif
 	"PMK",
 	"BIP",
 	"AES_GCM",
@@ -2222,7 +2685,7 @@ bcm_ip_cksum(uint8 *buf, uint32 len, uint32 sum)
  * with savings in not having to use an indirect access, had it been dynamically
  * allocated.
  */
-#define BCM_MWBMAP_ITEMS_MAX    (16 * 1024)  /* May increase to 16K */
+#define BCM_MWBMAP_ITEMS_MAX    (64 * 1024)  /* May increase to 64K */
 
 #define BCM_MWBMAP_BITS_WORD    (NBITS(uint32))
 #define BCM_MWBMAP_WORDS_MAX    (BCM_MWBMAP_ITEMS_MAX / BCM_MWBMAP_BITS_WORD)
@@ -2255,7 +2718,7 @@ bcm_ip_cksum(uint8 *buf, uint32 len, uint32 sum)
 typedef struct bcm_mwbmap {     /* Hierarchical multiword bitmap allocator    */
 	uint16 wmaps;               /* Total number of words in free wd bitmap    */
 	uint16 imaps;               /* Total number of words in free id bitmap    */
-	int16  ifree;               /* Count of free indices. Used only in audits */
+	int32  ifree;               /* Count of free indices. Used only in audits */
 	uint16 total;               /* Total indices managed by multiword bitmap  */
 
 	void * magic;               /* Audit handle parameter from user           */
@@ -2299,7 +2762,7 @@ bcm_mwbmap_init(osl_t *osh, uint32 items_max)
 
 	/* Initialize runtime multiword bitmap state */
 	mwbmap_p->imaps = (uint16)words;
-	mwbmap_p->ifree = (int16)items_max;
+	mwbmap_p->ifree = (int32)items_max;
 	mwbmap_p->total = (uint16)items_max;
 
 	/* Setup magic, for use in audit of handle */
@@ -2652,10 +3115,10 @@ bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl)
 
 /* Simple 16bit Id allocator using a stack implementation. */
 typedef struct id16_map {
-	uint16  total;     /* total number of ids managed by allocator */
-	uint16  start;     /* start value of 16bit ids to be managed */
 	uint32  failures;  /* count of failures */
 	void    *dbg;      /* debug placeholder */
+	uint16  total;     /* total number of ids managed by allocator */
+	uint16  start;     /* start value of 16bit ids to be managed */
 	int     stack_idx; /* index into stack of available ids */
 	uint16  stack[0];  /* stack of 16 bit ids */
 } id16_map_t;
@@ -2686,7 +3149,12 @@ id16_map_init(osl_t *osh, uint16 total_ids, uint16 start_val16)
 	id16_map_t * id16_map;
 
 	ASSERT(total_ids > 0);
-	ASSERT((start_val16 + total_ids) < ID16_INVALID);
+
+	/* A start_val16 of ID16_UNDEFINED, allows the caller to fill the id16 map
+	 * with random values.
+	 */
+	ASSERT((start_val16 == ID16_UNDEFINED) ||
+	       (start_val16 + total_ids) < ID16_INVALID);
 
 	id16_map = (id16_map_t *) MALLOC(osh, ID16_MAP_SZ(total_ids));
 	if (id16_map == NULL) {
@@ -2698,24 +3166,32 @@ id16_map_init(osl_t *osh, uint16 total_ids, uint16 start_val16)
 	id16_map->failures = 0;
 	id16_map->dbg = NULL;
 
-	/* Populate stack with 16bit id values, commencing with start_val16 */
-	id16_map->stack_idx = 0;
-	val16 = start_val16;
+	/*
+	 * Populate stack with 16bit id values, commencing with start_val16.
+	 * if start_val16 is ID16_UNDEFINED, then do not populate the id16 map.
+	 */
+	id16_map->stack_idx = -1;
 
-	for (idx = 0; idx < total_ids; idx++, val16++) {
-		id16_map->stack_idx = idx;
-		id16_map->stack[id16_map->stack_idx] = val16;
+	if (id16_map->start != ID16_UNDEFINED) {
+		val16 = start_val16;
+
+		for (idx = 0; idx < total_ids; idx++, val16++) {
+			id16_map->stack_idx = idx;
+			id16_map->stack[id16_map->stack_idx] = val16;
+		}
 	}
 
 #if defined(BCM_DBG) && defined(BCM_DBG_ID16)
-	id16_map->dbg = MALLOC(osh, ID16_MAP_DBG_SZ(total_ids));
+	if (id16_map->start != ID16_UNDEFINED) {
+		id16_map->dbg = MALLOC(osh, ID16_MAP_DBG_SZ(total_ids));
 
-	if (id16_map->dbg) {
-		id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
+		if (id16_map->dbg) {
+			id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
 
-		id16_map_dbg->total = total_ids;
-		for (idx = 0; idx < total_ids; idx++) {
-			id16_map_dbg->avail[idx] = TRUE;
+			id16_map_dbg->total = total_ids;
+			for (idx = 0; idx < total_ids; idx++) {
+				id16_map_dbg->avail[idx] = TRUE;
+			}
 		}
 	}
 #endif /* BCM_DBG && BCM_DBG_ID16 */
@@ -2757,7 +3233,11 @@ id16_map_clear(void * id16_map_hndl, uint16 total_ids, uint16 start_val16)
 	id16_map_t * id16_map;
 
 	ASSERT(total_ids > 0);
-	ASSERT((start_val16 + total_ids) < ID16_INVALID);
+	/* A start_val16 of ID16_UNDEFINED, allows the caller to fill the id16 map
+	 * with random values.
+	 */
+	ASSERT((start_val16 == ID16_UNDEFINED) ||
+	       (start_val16 + total_ids) < ID16_INVALID);
 
 	id16_map = (id16_map_t *)id16_map_hndl;
 	if (id16_map == NULL) {
@@ -2769,21 +3249,26 @@ id16_map_clear(void * id16_map_hndl, uint16 total_ids, uint16 start_val16)
 	id16_map->failures = 0;
 
 	/* Populate stack with 16bit id values, commencing with start_val16 */
-	id16_map->stack_idx = 0;
-	val16 = start_val16;
+	id16_map->stack_idx = -1;
 
-	for (idx = 0; idx < total_ids; idx++, val16++) {
-		id16_map->stack_idx = idx;
-		id16_map->stack[id16_map->stack_idx] = val16;
+	if (id16_map->start != ID16_UNDEFINED) {
+		val16 = start_val16;
+
+		for (idx = 0; idx < total_ids; idx++, val16++) {
+			id16_map->stack_idx = idx;
+			id16_map->stack[id16_map->stack_idx] = val16;
+		}
 	}
 
 #if defined(BCM_DBG) && defined(BCM_DBG_ID16)
-	if (id16_map->dbg) {
-		id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
+	if (id16_map->start != ID16_UNDEFINED) {
+		if (id16_map->dbg) {
+			id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
 
-		id16_map_dbg->total = total_ids;
-		for (idx = 0; idx < total_ids; idx++) {
-			id16_map_dbg->avail[idx] = TRUE;
+			id16_map_dbg->total = total_ids;
+			for (idx = 0; idx < total_ids; idx++) {
+				id16_map_dbg->avail[idx] = TRUE;
+			}
 		}
 	}
 #endif /* BCM_DBG && BCM_DBG_ID16 */
@@ -2810,8 +3295,8 @@ id16_map_alloc(void * id16_map_hndl)
 	id16_map->stack_idx--;
 
 #if defined(BCM_DBG) && defined(BCM_DBG_ID16)
-
-	ASSERT(val16 < (id16_map->start + id16_map->total));
+	ASSERT((id16_map->start == ID16_UNDEFINED) ||
+	       (val16 < (id16_map->start + id16_map->total)));
 
 	if (id16_map->dbg) { /* Validate val16 */
 		id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
@@ -2835,8 +3320,8 @@ id16_map_free(void * id16_map_hndl, uint16 val16)
 	id16_map = (id16_map_t *)id16_map_hndl;
 
 #if defined(BCM_DBG) && defined(BCM_DBG_ID16)
-
-	ASSERT(val16 < (id16_map->start + id16_map->total));
+	ASSERT((id16_map->start == ID16_UNDEFINED) ||
+	       (val16 < (id16_map->start + id16_map->total)));
 
 	if (id16_map->dbg) { /* Validate val16 */
 		id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
@@ -2868,7 +3353,12 @@ id16_map_audit(void * id16_map_hndl)
 
 	id16_map = (id16_map_t *)id16_map_hndl;
 
-	ASSERT((id16_map->stack_idx > 0) && (id16_map->stack_idx < id16_map->total));
+	ASSERT(id16_map->stack_idx >= -1);
+	ASSERT(id16_map->stack_idx < (int)id16_map->total);
+
+	if (id16_map->start == ID16_UNDEFINED)
+		goto done;
+
 	for (idx = 0; idx <= id16_map->stack_idx; idx++) {
 		ASSERT(id16_map->stack[idx] >= id16_map->start);
 		ASSERT(id16_map->stack[idx] < (id16_map->start + id16_map->total));
@@ -2879,7 +3369,7 @@ id16_map_audit(void * id16_map_hndl)
 			if (((id16_map_dbg_t *)(id16_map->dbg))->avail[val16] != TRUE) {
 				insane |= 1;
 				ID16_MAP_MSG(("id16_map<%p>: stack_idx %u invalid val16 %u\n",
-				              id16_map_hndl, idx, val16));
+					id16_map_hndl, idx, val16));
 			}
 		}
 #endif /* BCM_DBG && BCM_DBG_ID16 */
@@ -2895,11 +3385,13 @@ id16_map_audit(void * id16_map_hndl)
 		if (avail && (avail != (id16_map->stack_idx + 1))) {
 			insane |= 1;
 			ID16_MAP_MSG(("id16_map<%p>: avail %u stack_idx %u\n",
-			              id16_map_hndl, avail, id16_map->stack_idx));
+				id16_map_hndl, avail, id16_map->stack_idx));
 		}
 	}
 #endif /* BCM_DBG && BCM_DBG_ID16 */
 
+done:
+	/* invoke any other system audits */
 	return (!!insane);
 }
 /* END: Simple id16 allocator */

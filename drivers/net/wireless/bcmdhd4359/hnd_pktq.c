@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: $
+ * $Id: hnd_pktq.c 605726 2015-12-11 07:08:16Z $
  */
 
 #include <typedefs.h>
@@ -60,7 +60,8 @@ pktq_penq(struct pktq *pq, int prec, void *p)
 		return NULL;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);         /* queueing chains not allowed */
+	/* queueing chains not allowed and no segmented SKB (Kernel-3.18.y) */
+	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -97,7 +98,8 @@ pktq_penq_head(struct pktq *pq, int prec, void *p)
 		return NULL;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);         /* queueing chains not allowed */
+	/* queueing chains not allowed and no segmented SKB (Kernel-3.18.y) */
+	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -391,7 +393,7 @@ void
 pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
-	void *p, *prev = NULL;
+	void *p, *next, *prev = NULL;
 
 	/* protect shared resource */
 	if (HND_PKTQ_MUTEX_ACQUIRE(&pq->mutex, OSL_EXT_TIME_FOREVER) != OSL_EXT_SUCCESS)
@@ -400,26 +402,28 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn, int 
 	q = &pq->q[prec];
 	p = q->head;
 	while (p) {
+		next = PKTLINK(p);
 		if (fn == NULL || (*fn)(p, arg)) {
 			bool head = (p == q->head);
 			if (head)
-				q->head = PKTLINK(p);
+				q->head = next;
 			else
-				PKTSETLINK(prev, PKTLINK(p));
+				PKTSETLINK(prev, next);
 			PKTSETLINK(p, NULL);
 			PKTFREE(osh, p, dir);
 			q->len--;
 			pq->len--;
-			p = (head ? q->head : PKTLINK(prev));
 		} else {
 			prev = p;
-			p = PKTLINK(p);
 		}
+		p = next;
 	}
+
+	q->tail = prev;
 
 	if (q->head == NULL) {
 		ASSERT(q->len == 0);
-		q->tail = NULL;
+		ASSERT(q->tail == NULL);
 	}
 
 	/* protect shared resource */

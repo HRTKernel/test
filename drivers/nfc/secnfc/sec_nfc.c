@@ -429,6 +429,9 @@ static ssize_t felica_epc_read(struct file *file, char __user *buf,
 		return -EFAULT;
 	}
 
+        if (len > sizeof(read_buff))
+		len = sizeof(read_buff);
+
 	ret = copy_to_user(buf, &read_buff, len);
 	if (ret != 0) {
 		EPC_ERR("[MFDD] %s ERROR(copy_to_user), ret=[%d]",
@@ -448,6 +451,9 @@ static ssize_t felica_epc_write(struct file *file, const char __user *data,
 {
 	int ret;
 	char ant;
+
+	if (len > sizeof(ant))
+		len = sizeof(ant);
 
 	ret = copy_from_user(&ant, data, len);
 	if (ret != 0) {
@@ -852,7 +858,9 @@ static long sec_nfc_ioctl(struct file *file, unsigned int cmd,
 
 		break;
 	case SEC_NFC_EDC_SWEEP:
+#ifdef CONFIG_NFC_EDC_TUNING
 		felica_ant_tuning(1);
+#endif
 		break;
 
 	default:

@@ -1135,6 +1135,10 @@
 #define WL_RADAR_SIMULATED		2	/* force radar detector to declare
 						 * detection once
 						 */
+#define WL_RADAR_SIMULATED_SC		3	/* force radar detector to declare
+						 * detection once on scan core
+						 * if available and active
+						 */
 #define WL_RSSI_ANT_VERSION	1	/* current version of wl_rssi_ant_t */
 #define WL_ANT_RX_MAX		2	/* max 2 receive antennas */
 #define WL_ANT_HT_RX_MAX	4	/* max 4 receive antennas/cores */

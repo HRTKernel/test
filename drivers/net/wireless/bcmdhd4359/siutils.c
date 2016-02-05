@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: siutils.c 548977 2015-04-14 10:40:21Z $
+ * $Id: siutils.c 552034 2015-04-24 19:00:35Z $
  */
 
 #include <bcm_cfg.h>
@@ -1436,6 +1436,17 @@ factor6(uint32 x)
 	}
 }
 
+/*
+ * Divide the clock by the divisor with protection for
+ * a zero divisor.
+ */
+static uint32
+divide_clock(uint32 clock, uint32 div)
+{
+	return div ? clock / div : 0;
+}
+
+
 /** calculate the speed the SI would run at given a set of clockcontrol values */
 uint32
 si_clock_rate(uint32 pll_type, uint32 n, uint32 m)
@@ -1493,10 +1504,10 @@ si_clock_rate(uint32 pll_type, uint32 n, uint32 m)
 
 		switch (mc) {
 		case CC_MC_BYPASS:	return (clock);
-		case CC_MC_M1:		return (clock / m1);
-		case CC_MC_M1M2:	return (clock / (m1 * m2));
-		case CC_MC_M1M2M3:	return (clock / (m1 * m2 * m3));
-		case CC_MC_M1M3:	return (clock / (m1 * m3));
+		case CC_MC_M1:		return divide_clock(clock, m1);
+		case CC_MC_M1M2:	return divide_clock(clock, m1 * m2);
+		case CC_MC_M1M2M3:	return divide_clock(clock, m1 * m2 * m3);
+		case CC_MC_M1M3:	return divide_clock(clock, m1 * m3);
 		default:		return (0);
 		}
 	} else {

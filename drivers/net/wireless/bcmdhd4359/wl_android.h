@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_android.h 533373 2015-02-10 10:15:25Z $
+ * $Id: wl_android.h 556083 2015-05-12 14:03:00Z $
  */
 
 #include <linux/module.h>
@@ -57,7 +57,7 @@ int wl_android_init(void);
 int wl_android_exit(void);
 void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
-int wl_android_wifi_off(struct net_device *dev);
+int wl_android_wifi_off(struct net_device *dev, bool on_failure);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
 
 #ifdef WL_GENL

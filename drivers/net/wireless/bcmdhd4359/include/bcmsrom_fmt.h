@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsrom_fmt.h 522232 2014-12-20 05:44:55Z $
+ * $Id: bcmsrom_fmt.h 553280 2015-04-29 07:55:29Z $
  */
 
 #ifndef	_bcmsrom_fmt_h_
@@ -37,7 +37,11 @@
 #define	SROM_MAX		1536
 #define SROM_MAXW		594
 
-#define VARS_MAX		4096
+#ifdef LARGE_NVRAM_MAXSZ
+#define VARS_MAX                LARGE_NVRAM_MAXSZ
+#else
+#define VARS_MAX                4096
+#endif /* LARGE_NVRAM_MAXSZ */
 
 /* PCI fields */
 #define PCI_F0DEVID		48
@@ -635,6 +639,7 @@
 
 
 /* SROM REV 12 */
+#define SROM12_SIGN                     64
 #define SROM12_WORDS			512
 #define SROM12_SIGNATURE		0x8888
 #define SROM12_CRCREV			511
@@ -805,10 +810,20 @@
 #define SROM12_PDOFF_20in80M_5G_B3		491
 #define SROM12_PDOFF_20in80M_5G_B4		492
 
+#define SROM13_PDOFFSET20IN40M5GCORE3           98
+#define SROM13_PDOFFSET20IN40M5GCORE3_1         99
+#define SROM13_PDOFFSET20IN80M5GCORE3           510
+#define SROM13_PDOFFSET20IN80M5GCORE3_1         511
+#define SROM13_PDOFFSET40IN80M5GCORE3           105
+#define SROM13_PDOFFSET40IN80M5GCORE3_1         106
+
+#define SROM13_PDOFFSET20IN40M2G                94
+#define SROM13_PDOFFSET20IN40M2GCORE3           95
+
 #define SROM12_GPDN_L				91  /* GPIO pull down bits [15:0]  */
 #define SROM12_GPDN_H				233 /* GPIO pull down bits [31:16] */
 
-
+#define SROM13_SIGN                     64
 #define SROM13_WORDS                    590
 #define SROM13_SIGNATURE                0x4d55
 #define SROM13_CRCREV                   589
@@ -820,6 +835,7 @@
 #define SROM13_PATH1                            328
 #define SROM13_PATH2                            400
 #define SROM13_PATH3                            512
+#define SROM13_RXGAINS                         5
 
 #define SROM13_XTALFREQ                 90
 

@@ -52,6 +52,7 @@
 #include "crc32.h"
 #include "fimc-is-companion.h"
 #include "fimc-is-device-from.h"
+#include "fimc-is-dt.h"
 
 #define FW_CORE_VER		0
 #define FW_PIXEL_SIZE		1
@@ -94,17 +95,19 @@
 #define FW_2P2_F		"F16LL"
 #define FW_2P2_I		"I16LL"
 #define FW_2P2_A		"A16LL"
-#define FW_3L2		"C13LL"
-#define FW_IMX135	"C13LS"
-#define FW_IMX134	"D08LS"
-#define FW_IMX228	"A20LS"
-#define FW_IMX240	"A16LS"
-#define FW_IMX240_Q	"H16US"
-#define FW_IMX240_Q_C1	"H16UL"
-#define FW_2P2_12M	"G16LL"
-#define FW_4H5		"F08LL"
-#define FW_2P3		"J16LL"
-#define FW_2T2		"A20LL"
+#define FW_2P2_B		"B16LL"
+#define FW_3L2			"C13LL"
+#define FW_IMX135		"C13LS"
+#define FW_IMX134		"D08LS"
+#define FW_IMX228		"A20LS"
+#define FW_IMX240_A		"A16LS"
+#define FW_IMX240_B		"B16LS"
+#define FW_IMX240_Q		"H16US"
+#define FW_IMX240_Q_C1		"H16UL"
+#define FW_2P2_12M		"G16LL"
+#define FW_4H5			"F08LL"
+#define FW_2P3			"J16LL"
+#define FW_2T2			"A20LL"
 
 #define SDCARD_FW
 #define FIMC_IS_FW_2P2				"fimc_is_fw2_2p2.bin"
@@ -152,18 +155,13 @@
 #define FIMC_IS_COMPANION_2T2_MODE_SETF			"companion_2t2_mode_setfile.bin"
 
 #define FIMC_IS_CAL_SDCARD_FRONT		"/data/cal_data_front.bin"
-#define FIMC_IS_FW_FROM_SDCARD		"/data/media/0/FW/CamFW_Main.bin"
-#define FIMC_IS_SETFILE_FROM_SDCARD		"/data/media/0/FW/CamSetfile_Main.bin"
-#define FIMC_IS_COMPANION_FROM_SDCARD	"/data/media/0/FW/CamFW_Companion.bin"
-#define FIMC_IS_KEY_FROM_SDCARD		"/data/media/0/FW/1q2w3e4r.key"
+#define FIMC_IS_FW_FROM_SDCARD		"/data/media/0/CamFW_Main.bin"
+#define FIMC_IS_SETFILE_FROM_SDCARD		"/data/media/0/CamSetfile_Main.bin"
+#define FIMC_IS_COMPANION_FROM_SDCARD	"/data/media/0/CamFW_Companion.bin"
+#define FIMC_IS_KEY_FROM_SDCARD		"/data/media/0/1q2w3e4r.key"
 
 #define SETFILE_SIZE	0x6000
 #define READ_SIZE	0x100
-
-#define FROM_VERSION_V002 '2'
-#define FROM_VERSION_V003 '3'
-#define FROM_VERSION_V004 '4'
-#define FROM_VERSION_V005 '5'
 
 #define FIMC_IS_HEADER_VER_SIZE      11
 #define FIMC_IS_OEM_VER_SIZE         11
@@ -351,4 +349,8 @@ int fimc_is_sec_gpio_enable(struct exynos_platform_fimc_is *pdata, char *name, b
 int fimc_is_sec_core_voltage_select(struct device *dev, char *header_ver);
 int fimc_is_sec_ldo_enable(struct device *dev, char *name, bool on);
 int fimc_is_sec_ldo_enabled(struct device *dev, char *name);
+int fimc_is_sec_rom_power_on(struct fimc_is_core *core, int position);
+int fimc_is_sec_rom_power_off(struct fimc_is_core *core, int position);
+int fimc_is_sec_hw_init(struct fimc_is_core *core);
+void fimc_is_sec_check_hw_init_running(void);
 #endif /* FIMC_IS_SEC_DEFINE_H */

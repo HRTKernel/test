@@ -28,7 +28,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhdioctl.h 551802 2015-04-24 06:34:11Z $
+ * $Id: dhdioctl.h 585723 2015-09-11 06:26:37Z $
  */
 
 #ifndef _dhdioctl_h_
@@ -97,6 +97,9 @@ enum {
 #define DHD_WL_VAL2		0x40000
 #define DHD_PNO_VAL		0x80000
 #define DHD_MSGTRACE_VAL	0x100000
+#define DHD_FWLOG_VAL		0x400000
+#define DHD_RTT_VAL		0x200000
+#define DHD_IOV_INFO_VAL	0x800000
 
 #ifdef SDTEST
 /* For pktgen iovar */

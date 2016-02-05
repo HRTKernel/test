@@ -27,6 +27,11 @@ config LCD_ALPM
 	tristate "Support ALPM display"
 	default n
 
+config LCD_BURNIN_CORRECTION
+	depends on EXYNOS_DECON_LCD
+	tristate "Support Burnin correction"
+	default n
+
 config LCD_HBM_INTERPOLATION
 	depends on EXYNOS_DECON_LCD
 	tristate "Support HBM brightness table"
@@ -68,6 +73,10 @@ config PANEL_S6E3HA3_DYNAMIC
 config PANEL_S6E3HF3_DYNAMIC
 	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSI
 	tristate "S6E3HF3 AMOLED SUPPORT BOTH S6E3HA2 and S6E3HF3 (1440 x 2560)"
+
+config PANEL_DUALIZATION
+	depends on PANEL_S6E3HF3_DYNAMIC
+	tristate "S6E3HF3 A3 PANEL DUALIZATION"
 
 config EXYNOS_DECON_LCD_S6E3FA0
 	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSI

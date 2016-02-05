@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmevent.h 546249 2015-04-02 20:54:16Z $
+ * $Id: bcmevent.h 555154 2015-05-07 20:46:07Z $
  *
  */
 
@@ -237,6 +237,7 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_PFN_SCAN_COMPLETE	138	/* PFN completed scan of network list */
 #define WLC_E_RMC_EVENT		139	/* RMC Event */
 #define WLC_E_DPSTA_INTF_IND	140 /* DPSTA interface indication */
+#define WLC_E_RRM			141	/* RRM Event */
 #define WLC_E_PFN_SSID_EXT      142    /* SSID EXT event */
 #define WLC_E_ROAM_EXP_EVENT    143  /* Expanded roam event */
 #define WLC_E_LAST		144	/* highest val + 1 for range checking */

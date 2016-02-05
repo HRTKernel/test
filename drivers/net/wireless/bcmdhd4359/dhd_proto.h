@@ -27,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_proto.h 541060 2015-03-13 23:28:01Z $
+ * $Id: dhd_proto.h 604483 2015-12-07 14:47:36Z $
  */
 
 #ifndef _dhd_proto_h_
@@ -48,6 +48,16 @@
 #ifndef MFG_IOCTL_RESP_TIMEOUT
 #define MFG_IOCTL_RESP_TIMEOUT  20000  /* In milli second default value for MFG FW */
 #endif /* MFG_IOCTL_RESP_TIMEOUT */
+
+#define DEFAULT_D3_ACK_RESP_TIMEOUT	4000
+#ifndef D3_ACK_RESP_TIMEOUT
+#define D3_ACK_RESP_TIMEOUT		DEFAULT_D3_ACK_RESP_TIMEOUT
+#endif /* D3_ACK_RESP_TIMEOUT */
+
+#define DEFAULT_DHD_BUS_BUSY_TIMEOUT	(IOCTL_RESP_TIMEOUT + 1000)
+#ifndef DHD_BUS_BUSY_TIMEOUT
+#define DHD_BUS_BUSY_TIMEOUT	DEFAULT_DHD_BUS_BUSY_TIMEOUT
+#endif /* DEFAULT_DHD_BUS_BUSY_TIMEOUT */
 
 #define IOCTL_DISABLE_TIMEOUT 0
 /*
@@ -143,6 +153,7 @@ extern void dhd_lb_tx_compl_handler(unsigned long data);
 extern void dhd_lb_rx_compl_handler(unsigned long data);
 extern void dhd_lb_rx_process_handler(unsigned long data);
 #endif /* DHD_LB */
+void dhd_prot_collect_memdump(dhd_pub_t *dhd);
 #endif /* BCMPCIE */
 /********************************
  * For version-string expansion *

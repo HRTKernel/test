@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmdevs.h 541060 2015-03-13 23:28:01Z $
+ * $Id: bcmdevs.h 582052 2015-08-26 09:30:53Z $
  */
 
 #ifndef	_BCMDEVS_H
@@ -202,6 +202,9 @@
 #define BCM4359_D11AC_ID	0x43ef		/* 4359 802.11ac dualband device */
 #define BCM4359_D11AC2G_ID	0x43fe		/* 4359 802.11ac 2.4G device */
 #define BCM4359_D11AC5G_ID	0x43ff		/* 4359 802.11ac 5G device */
+#define BCM43596_D11AC_ID	0x4415		/* 43596 802.11ac dualband device */
+#define BCM43596_D11AC2G_ID	0x4416		/* 43596 802.11ac 2.4G device */
+#define BCM43596_D11AC5G_ID	0x4417		/* 43596 802.11ac 5G device */
 #define BCM43909_D11AC_ID	0x43d0		/* 43909 802.11ac dualband device */
 #define BCM43909_D11AC2G_ID	0x43d1		/* 43909 802.11ac 2.4G device */
 #define BCM43909_D11AC5G_ID	0x43d2		/* 43909 802.11ac 5G device */
@@ -398,6 +401,7 @@
 				(CHIPID(chipid) == BCM43556_CHIP_ID) || \
 				(CHIPID(chipid) == BCM43558_CHIP_ID) || \
 				(CHIPID(chipid) == BCM43566_CHIP_ID) || \
+				(CHIPID(chipid) == BCM43567_CHIP_ID) || \
 				(CHIPID(chipid) == BCM43568_CHIP_ID) || \
 				(CHIPID(chipid) == BCM43569_CHIP_ID) || \
 				(CHIPID(chipid) == BCM43570_CHIP_ID) || \

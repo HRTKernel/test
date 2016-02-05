@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsrom_tbl.h 545915 2015-04-02 00:55:38Z $
+ * $Id: bcmsrom_tbl.h 553564 2015-04-30 06:19:30Z $
  */
 
 #ifndef	_bcmsrom_tbl_h_
@@ -549,6 +549,7 @@ static const sromvar_t pci_sromvars[] = {
 
 	{"subband5gver",	0xfffff800, 	SRFL_PRHEX,	SROM11_SUBBAND5GVER, 	0xffff},
 	{"paparambwver",	0xfffff800, 	0,		SROM11_MCSLR5GLPO, 	0xf000},
+	{"rx5ggainwar",         0xfffff800,     0,              SROM11_MCSLR5GMPO,      0x2000},
 	/* Special PA Params for 4350 5G Band, 40/80 MHz BW Ant #0 */
 	{"pa5gbw4080a0", 0xfffff800, SRFL_PRHEX | SRFL_ARRAY, SROM11_PATH2 +SROM11_5GB0_PA, 0xffff},
 	{"", 0xfffff800,	SRFL_PRHEX | SRFL_ARRAY, SROM11_PATH2 + SROM11_5GB0_PA + 1, 0xffff},
@@ -708,6 +709,16 @@ static const sromvar_t pci_sromvars[] = {
 	{"pdoffset20in80m5gb3", 0xfffff000,	0,      SROM12_PDOFF_20in80M_5G_B3,    0xffff},
 	{"pdoffset20in80m5gb4", 0xfffff000,	0,      SROM12_PDOFF_20in80M_5G_B4,    0xffff},
 
+	{"pdoffset20in40m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3,   0xffff},
+	{"pdoffset20in40m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN40M5GCORE3_1, 0xffff},
+	{"pdoffset20in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3,   0xffff},
+	{"pdoffset20in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET20IN80M5GCORE3_1, 0xffff},
+	{"pdoffset40in80m5gcore3",   0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3,   0xffff},
+	{"pdoffset40in80m5gcore3_1", 0xffffe000, 0,     SROM13_PDOFFSET40IN80M5GCORE3_1, 0xffff},
+
+	{"pdoffset20in40m2g",        0xffffe000, 0,     SROM13_PDOFFSET20IN40M2G,        0xffff},
+	{"pdoffset20in40m2gcore3",   0xffffe000, 0,     SROM13_PDOFFSET20IN40M2GCORE3,   0xffff},
+
 	/* power per rate */
 	{"mcsbw205gx1po",       0xfffff000,     SRFL_MORE,      SROM12_MCSBW205GX1PO,   0xffff},
 	{"",                    0xfffff000,     0,              SROM12_MCSBW205GX1PO_1, 0xffff},
@@ -755,6 +766,119 @@ static const sromvar_t pci_sromvars[] = {
 	{"gpdn",		0xfffff000,	SRFL_PRHEX|SRFL_MORE,	SROM12_GPDN_L,	0xffff},
 	{"",			0,		0,			SROM12_GPDN_H,	0xffff},
 
+	{"eu_edthresh2g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0x00ff},
+	{"eu_edthresh5g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0xff00},
+
+	{"agbg3",       0xffffe000,     0,              SROM13_ANTGAIN_BANDBGA, 0xff00},
+	{"aga3",        0xffffe000,     0,              SROM13_ANTGAIN_BANDBGA, 0x00ff},
+	{"noiselvl2ga3",        0xffffe000,     0,              SROM13_NOISELVLCORE3,   0x001f},
+	{"noiselvl5ga3",        0xffffe000,     SRFL_ARRAY,     SROM13_NOISELVLCORE3,   0x03e0},
+	{"",                    0xffffe000,     SRFL_ARRAY,     SROM13_NOISELVLCORE3,   0x7c00},
+	{"",                    0xffffe000,     SRFL_ARRAY,     SROM13_NOISELVLCORE3_1, 0x001f},
+	{"",                    0xffffe000,     0,              SROM13_NOISELVLCORE3_1, 0x03e0},
+	{"rxgainerr2ga3",       0xffffe000,     0,              SROM13_RXGAINERRCORE3,  0x001f},
+	{"rxgainerr5ga3",       0xffffe000,     SRFL_ARRAY,     SROM13_RXGAINERRCORE3,  0x03e0},
+	{"",                    0xffffe000,     SRFL_ARRAY,     SROM13_RXGAINERRCORE3,  0x7c00},
+	{"",                    0xffffe000,     SRFL_ARRAY,     SROM13_RXGAINERRCORE3_1, 0x001f},
+	{"",                    0xffffe000,     0,              SROM13_RXGAINERRCORE3_1, 0x03e0},
+	{"rxgains5gmelnagaina3",        0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x0007},
+	{"rxgains5gmtrisoa3",   0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x0078},
+	{"rxgains5gmtrelnabypa3", 0xffffe000,   0,       SROM13_RXGAINS1CORE3,  0x0080},
+	{"rxgains5ghelnagaina3",        0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x0700},
+	{"rxgains5ghtrisoa3",   0xffffe000,     0,       SROM13_RXGAINS1CORE3,  0x7800},
+	{"rxgains5ghtrelnabypa3", 0xffffe000,   0,       SROM13_RXGAINS1CORE3,  0x8000},
+
+	/* power per rate */
+	{"mcs1024qam2gpo",      0xffffe000,     0,           SROM13_MCS1024QAM2GPO,     0xffff},
+	{"mcs1024qam5glpo",     0xffffe000,     SRFL_MORE,   SROM13_MCS1024QAM5GLPO,    0xffff},
+	{"",                    0xffffe000,     0,           SROM13_MCS1024QAM5GLPO_1,  0xffff},
+	{"mcs1024qam5gmpo",     0xffffe000,     SRFL_MORE,   SROM13_MCS1024QAM5GMPO,    0xffff},
+	{"",                    0xffffe000,     0,           SROM13_MCS1024QAM5GMPO_1,  0xffff},
+	{"mcs1024qam5ghpo",     0xffffe000,     SRFL_MORE,   SROM13_MCS1024QAM5GHPO,    0xffff},
+	{"",                    0xffffe000,     0,           SROM13_MCS1024QAM5GHPO_1,  0xffff},
+	{"mcs1024qam5gx1po",    0xffffe000,     SRFL_MORE,   SROM13_MCS1024QAM5GX1PO,   0xffff},
+	{"",                    0xffffe000,     0,           SROM13_MCS1024QAM5GX1PO_1, 0xffff},
+	{"mcs1024qam5gx2po",    0xffffe000,     SRFL_MORE,   SROM13_MCS1024QAM5GX2PO,   0xffff},
+	{"",                    0xffffe000,     0,           SROM13_MCS1024QAM5GX2PO_1, 0xffff},
+
+	{"mcsbw1605glpo",       0xffffe000,     SRFL_MORE,      SROM13_MCSBW1605GLPO,   0xffff},
+	{"",                    0xffffe000,     0,              SROM13_MCSBW1605GLPO_1, 0xffff},
+	{"mcsbw1605gmpo",       0xffffe000,     SRFL_MORE,      SROM13_MCSBW1605GMPO,   0xffff},
+	{"",                    0xffffe000,     0,              SROM13_MCSBW1605GMPO_1, 0xffff},
+	{"mcsbw1605ghpo",       0xffffe000,     SRFL_MORE,      SROM13_MCSBW1605GHPO,   0xffff},
+	{"",                    0xffffe000,     0,              SROM13_MCSBW1605GHPO_1, 0xffff},
+	{"mcsbw1605gx1po",      0xffffe000,     SRFL_MORE,      SROM13_MCSBW1605GX1PO,  0xffff},
+	{"",                    0xffffe000,     0,      SROM13_MCSBW1605GX1PO_1,        0xffff},
+	{"mcsbw1605gx2po",      0xffffe000,     SRFL_MORE,      SROM13_MCSBW1605GX2PO,  0xffff},
+	{"",                    0xffffe000,     0,      SROM13_MCSBW1605GX2PO_1,        0xffff},
+
+	{"ulbpproffs2g",        0xffffe000,     0,      SROM13_ULBPPROFFS2G,            0xffff},
+
+	{"mcs8poexp",           0xffffe000,     SRFL_MORE,    SROM13_MCS8POEXP,         0xffff},
+	{"",                    0xffffe000,     0,            SROM13_MCS8POEXP_1,       0xffff},
+	{"mcs9poexp",           0xffffe000,     SRFL_MORE,    SROM13_MCS9POEXP,         0xffff},
+	{"",                    0xffffe000,     0,            SROM13_MCS9POEXP_1,       0xffff},
+	{"mcs10poexp",          0xffffe000,     SRFL_MORE,    SROM13_MCS10POEXP,        0xffff},
+	{"",                    0xffffe000,     0,            SROM13_MCS10POEXP_1,      0xffff},
+	{"mcs11poexp",          0xffffe000,     SRFL_MORE,    SROM13_MCS11POEXP,        0xffff},
+	{"",                    0xffffe000,     0,            SROM13_MCS11POEXP_1,      0xffff},
+
+	{"ulbpdoffs5gb0a0",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB0A0,         0xffff},
+	{"ulbpdoffs5gb0a1",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB0A1,         0xffff},
+	{"ulbpdoffs5gb0a2",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB0A2,         0xffff},
+	{"ulbpdoffs5gb0a3",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB0A3,         0xffff},
+	{"ulbpdoffs5gb1a0",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB1A0,         0xffff},
+	{"ulbpdoffs5gb1a1",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB1A1,         0xffff},
+	{"ulbpdoffs5gb1a2",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB1A2,         0xffff},
+	{"ulbpdoffs5gb1a3",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB1A3,         0xffff},
+	{"ulbpdoffs5gb2a0",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB2A0,         0xffff},
+	{"ulbpdoffs5gb2a1",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB2A1,         0xffff},
+	{"ulbpdoffs5gb2a2",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB2A2,         0xffff},
+	{"ulbpdoffs5gb2a3",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB2A3,         0xffff},
+	{"ulbpdoffs5gb3a0",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB3A0,         0xffff},
+	{"ulbpdoffs5gb3a1",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB3A1,         0xffff},
+	{"ulbpdoffs5gb3a2",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB3A2,         0xffff},
+	{"ulbpdoffs5gb3a3",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB3A3,         0xffff},
+	{"ulbpdoffs5gb4a0",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB4A0,         0xffff},
+	{"ulbpdoffs5gb4a1",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB4A1,         0xffff},
+	{"ulbpdoffs5gb4a2",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB4A2,         0xffff},
+	{"ulbpdoffs5gb4a3",     0xffffe000,     0,      SROM13_ULBPDOFFS5GB4A3,         0xffff},
+	{"ulbpdoffs2ga0",       0xffffe000,     0,      SROM13_ULBPDOFFS2GA0,           0xffff},
+	{"ulbpdoffs2ga1",       0xffffe000,     0,      SROM13_ULBPDOFFS2GA1,           0xffff},
+	{"ulbpdoffs2ga2",       0xffffe000,     0,      SROM13_ULBPDOFFS2GA2,           0xffff},
+	{"ulbpdoffs2ga3",       0xffffe000,     0,      SROM13_ULBPDOFFS2GA3,           0xffff},
+
+	{"rpcal5gb4",           0xffffe000,     0,      SROM13_RPCAL5GB4,               0xffff},
+
+	{"sb20in40hrlrpox",     0xffffe000,     0,       SROM13_SB20IN40HRLRPOX,        0xffff},
+
+	{"pdoffset20in40m2g",   0xffffe000,     0,      SROM13_PDOFFSET20IN40M2G,       0xffff},
+	{"pdoffset20in40m2gcore3", 0xffffe000,  0,      SROM13_PDOFFSET20IN40M2GCORE3,  0xffff},
+
+	{"pdoffset20in40m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET20IN40M5GCORE3, 0xffff},
+	{"",                    0xffffe000,     0,  SROM13_PDOFFSET20IN40M5GCORE3_1,   0xffff},
+	{"pdoffset40in80m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET40IN80M5GCORE3, 0xffff},
+	{"",                    0xffffe000,     0,  SROM13_PDOFFSET40IN80M5GCORE3_1,   0xffff},
+	{"pdoffset20in80m5gcore3", 0xffffe000, SRFL_MORE, SROM13_PDOFFSET20IN80M5GCORE3, 0xffff},
+	{"",                    0xffffe000,     0,  SROM13_PDOFFSET20IN80M5GCORE3_1,   0xffff},
+
+	{"swctrlmap4_cfg",      0xffffe000,     0,      SROM13_SWCTRLMAP4_CFG,          0xffff},
+	{"swctrlmap4_TX2g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_TX2G_FEM3TO0, 0xffff},
+	{"swctrlmap4_RX2g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_RX2G_FEM3TO0, 0xffff},
+	{"swctrlmap4_RXByp2g_fem3to0", 0xffffe000, 0, SROM13_SWCTRLMAP4_RXBYP2G_FEM3TO0, 0xffff},
+	{"swctrlmap4_misc2g_fem3to0", 0xffffe000, 0,  SROM13_SWCTRLMAP4_MISC2G_FEM3TO0, 0xffff},
+	{"swctrlmap4_TX5g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_TX5G_FEM3TO0, 0xffff},
+	{"swctrlmap4_RX5g_fem3to0", 0xffffe000, 0,      SROM13_SWCTRLMAP4_RX5G_FEM3TO0, 0xffff},
+	{"swctrlmap4_RXByp5g_fem3to0", 0xffffe000, 0, SROM13_SWCTRLMAP4_RXBYP5G_FEM3TO0, 0xffff},
+	{"swctrlmap4_misc5g_fem3to0", 0xffffe000, 0,  SROM13_SWCTRLMAP4_MISC5G_FEM3TO0, 0xffff},
+	{"swctrlmap4_TX2g_fem7to4", 0xffffe000, 0,      SROM13_SWCTRLMAP4_TX2G_FEM7TO4, 0xffff},
+	{"swctrlmap4_RX2g_fem7to4", 0xffffe000, 0,      SROM13_SWCTRLMAP4_RX2G_FEM7TO4, 0xffff},
+	{"swctrlmap4_RXByp2g_fem7to4", 0xffffe000, 0, SROM13_SWCTRLMAP4_RXBYP2G_FEM7TO4, 0xffff},
+	{"swctrlmap4_misc2g_fem7to4", 0xffffe000, 0,  SROM13_SWCTRLMAP4_MISC2G_FEM7TO4, 0xffff},
+	{"swctrlmap4_TX5g_fem7to4", 0xffffe000, 0,      SROM13_SWCTRLMAP4_TX5G_FEM7TO4, 0xffff},
+	{"swctrlmap4_RX5g_fem7to4", 0xffffe000, 0,      SROM13_SWCTRLMAP4_RX5G_FEM7TO4, 0xffff},
+	{"swctrlmap4_RXByp5g_fem7to4", 0xffffe000, 0, SROM13_SWCTRLMAP4_RXBYP5G_FEM7TO4, 0xffff},
+	{"swctrlmap4_misc5g_fem7to4", 0xffffe000, 0,  SROM13_SWCTRLMAP4_MISC5G_FEM7TO4, 0xffff},
 	{NULL,		0,		0,		0,			0}
 };
 
@@ -924,6 +1048,13 @@ static const sromvar_t perpath_pci_sromvars[] = {
 	{"",	0xfffff000, SRFL_PRHEX | SRFL_ARRAY,		 SROM12_5G80B4_PA_W1,	0x00ffff},
 	{"",	0xfffff000, SRFL_PRHEX | SRFL_ARRAY,		 SROM12_5G80B4_PA_W2,	0x00ffff},
 	{"",	0xfffff000, SRFL_PRHEX,		                 SROM12_5G80B4_PA_W3,	0x00ffff},
+	/* sromrev 13 */
+	{"rxgains2gelnagaina",   0xffffe000,     0,       SROM13_RXGAINS,  0x0007},
+	{"rxgains2gtrisoa",     0xffffe000,     0,       SROM13_RXGAINS,  0x0078},
+	{"rxgains2gtrelnabypa", 0xffffe000,     0,       SROM13_RXGAINS,  0x0080},
+	{"rxgains5gelnagaina",  0xffffe000,     0,       SROM13_RXGAINS,  0x0700},
+	{"rxgains5gtrisoa",     0xffffe000,     0,       SROM13_RXGAINS,  0x7800},
+	{"rxgains5gtrelnabypa", 0xffffe000,     0,       SROM13_RXGAINS,  0x8000},
 	{NULL,		0,		0,		0, 			0}
 };
 

@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.h 547371 2015-04-08 12:51:39Z $
+ * $Id: bcmutils.h 563776 2015-06-15 15:51:15Z $
  */
 
 #ifndef	_bcmutils_h_
@@ -149,6 +149,7 @@ extern int ether_isnulladdr(const void *ea);
 #define BCM_RXCPL_CLR_VALID_INFO(a)	((a)->rxcpl_id.flags &= ~BCM_RXCPL_FLAGS_RXCPLVALID)
 #define BCM_RXCPL_VALID_INFO(a) (((a)->rxcpl_id.flags & BCM_RXCPL_FLAGS_RXCPLVALID) ? TRUE : FALSE)
 
+#define UP_TABLE_MAX	((IPV4_TOS_DSCP_MASK >> IPV4_TOS_DSCP_SHIFT) + 1)	/* 64 max */
 
 struct reorder_rxcpl_id_list {
 	uint16 head;
@@ -229,6 +230,7 @@ extern void *pktoffset(osl_t *osh, void *p,  uint offset);
 #define DSCP_EF		0x2E
 
 extern uint pktsetprio(void *pkt, bool update_vtag);
+extern uint pktsetprio_qms(void *pkt, uint8* up_table, bool update_vtag);
 extern bool pktgetdscp(uint8 *pktdata, uint pktlen, uint8 *dscp);
 
 /* string */
@@ -917,6 +919,50 @@ extern uint bcm_mkiovar(const char *name, char *data, uint datalen, char *buf, u
 
 unsigned int process_nvram_vars(char *varbuf, unsigned int len);
 
+/* trace any object allocation / free, with / without features (flags) set to the object */
+
+#define BCM_OBJDBG_ADD           1
+#define BCM_OBJDBG_REMOVE        2
+#define BCM_OBJDBG_ADD_PKT       3
+
+/* object feature: set or clear flags */
+#define BCM_OBJECT_FEATURE_FLAG       1
+#define BCM_OBJECT_FEATURE_PKT_STATE  2
+/* object feature: flag bits */
+#define BCM_OBJECT_FEATURE_0     (1 << 0)
+#define BCM_OBJECT_FEATURE_1     (1 << 1)
+#define BCM_OBJECT_FEATURE_2     (1 << 2)
+/* object feature: clear flag bits field set with this flag */
+#define BCM_OBJECT_FEATURE_CLEAR (1 << 31)
+#ifdef BCM_OBJECT_TRACE
+#define bcm_pkt_validate_chk(obj)	do { \
+	void * pkttag; \
+	bcm_object_trace_chk(obj, 0, 0, \
+		__FUNCTION__, __LINE__); \
+	if ((pkttag = PKTTAG(obj))) { \
+		bcm_object_trace_chk(obj, 1, DHD_PKTTAG_SN(pkttag), \
+			__FUNCTION__, __LINE__); \
+	} \
+} while (0)
+extern void bcm_object_trace_opr(void *obj, uint32 opt, const char *caller, int line);
+extern void bcm_object_trace_upd(void *obj, void *obj_new);
+extern void bcm_object_trace_chk(void *obj, uint32 chksn, uint32 sn,
+	const char *caller, int line);
+extern void bcm_object_feature_set(void *obj, uint32 type, uint32 value);
+extern int  bcm_object_feature_get(void *obj, uint32 type, uint32 value);
+extern void bcm_object_trace_init(void);
+extern void bcm_object_trace_deinit(void);
+#else
+#define bcm_pkt_validate_chk(obj)
+#define bcm_object_trace_opr(a, b, c, d)
+#define bcm_object_trace_upd(a, b)
+#define bcm_object_trace_chk(a, b, c, d, e)
+#define bcm_object_feature_set(a, b, c)
+#define bcm_object_feature_get(a, b, c)
+#define bcm_object_trace_init()
+#define bcm_object_trace_deinit()
+#endif /* BCM_OBJECT_TRACE */
+
 /* calculate a * b + c */
 extern void bcm_uint64_multiple_add(uint32* r_high, uint32* r_low, uint32 a, uint32 b, uint32 c);
 /* calculate a / b */
@@ -1033,6 +1079,7 @@ extern void bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl);
 /* INTERFACE: Simple unique 16bit Id Allocator using a stack implementation. */
 
 #define ID16_INVALID                ((uint16)(~0))
+#define ID16_UNDEFINED              (ID16_INVALID)
 
 /*
  * Construct a 16bit id allocator, managing 16bit ids in the range:

@@ -24,16 +24,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgvendor.h 455257 2014-02-20 08:10:24Z $
+ * $Id: wl_cfgvendor.h 605796 2015-12-11 13:45:36Z $
  */
 
 
 #ifndef _wl_cfgvendor_h_
 #define _wl_cfgvendor_h_
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) && !defined(VENDOR_EXT_SUPPORT)
-#define VENDOR_EXT_SUPPORT
-#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0) && !VENDOR_EXT_SUPPORT */
 
 #define OUI_BRCM    0x001018
 #define OUI_GOOGLE  0x001A11
@@ -217,7 +213,8 @@ typedef enum wl_vendor_event {
 	GOOGLE_SCAN_FULL_RESULTS_EVENT,
 	GOOGLE_RTT_COMPLETE_EVENT,
 	GOOGLE_SCAN_COMPLETE_EVENT,
-	GOOGLE_GSCAN_GEOFENCE_LOST_EVENT
+	GOOGLE_GSCAN_GEOFENCE_LOST_EVENT,
+	BRCM_VENDOR_EVENT_IDSUP_STATUS
 } wl_vendor_event_t;
 
 enum andr_wifi_attr {
@@ -255,13 +252,12 @@ typedef enum gscan_complete_event {
 	WIFI_SCAN_COMPLETE
 } gscan_complete_event_t;
 
-#define OUI_GOOGLE  0x001A11
 /* Capture the BRCM_VENDOR_SUBCMD_PRIV_STRINGS* here */
 #define BRCM_VENDOR_SCMD_CAPA	"cap"
 
-#ifdef VENDOR_EXT_SUPPORT
-extern int cfgvendor_attach(struct wiphy *wiphy);
-extern int cfgvendor_detach(struct wiphy *wiphy);
+#if defined(WL_VENDOR_EXT_SUPPORT) || defined(CONFIG_BCMDHD_VENDOR_EXT)
+extern int wl_cfgvendor_attach(struct wiphy *wiphy);
+extern int wl_cfgvendor_detach(struct wiphy *wiphy);
 extern int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
                   struct net_device *dev, int event_id, const void  *data, int len);
 extern int wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
@@ -269,6 +265,6 @@ extern int wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 #else
 static INLINE int cfgvendor_attach(struct wiphy *wiphy) { return 0; }
 static INLINE int cfgvendor_detach(struct wiphy *wiphy) { return 0; }
-#endif /*  VENDOR_EXT_SUPPORT */
+#endif /* defined(WL_VENDOR_EXT_SUPPORT) */
 
 #endif /* _wl_cfgvendor_h_ */

@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: brcm_nl80211.h 514727 2014-11-12 03:02:48Z $
+ * $Id: brcm_nl80211.h 556083 2015-05-12 14:03:00Z $
  *
  */
 
@@ -35,7 +35,8 @@
 
 enum wl_vendor_subcmd {
 	BRCM_VENDOR_SCMD_UNSPEC,
-	BRCM_VENDOR_SCMD_PRIV_STR
+	BRCM_VENDOR_SCMD_PRIV_STR,
+	BRCM_VENDOR_SCMD_BCM_STR
 };
 
 
